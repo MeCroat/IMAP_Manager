@@ -19,10 +19,10 @@ from datetime import timezone
 user = "mecroat@mastermode.com"
 password = "Mandy@4629"
 imap_url = "mbox.server289.com"
-dateFile = "MailFileDate.txt"
-blacklistFile = "BlackList.txt"
-whitelistFile = "WhiteList.txt"
-returnlistFile = 'JustReturns.txt'
+date_file = "MailFileDate.txt"
+blacklist_file = "BlackList.txt"
+whitelist_file = "WhiteList.txt"
+returnlist_file = 'JustReturns.txt'
 newestFile = "NewestSendersToConsider.txt"
 
 max_emails_to_scan = 50
@@ -43,13 +43,13 @@ def print_hi(name):
 def get_date_time( ) -> []:
     date_time = dt.datetime.now()
     current_time = date_time.now( pytz.timezone( 'America/Chicago' ) )
-    Temp1 = str( current_time )
-    Temp1 = Temp1.replace( '-', '' )
-    Temp1 = Temp1.replace( ':', '' )
+    temp1 = str( current_time )
+    temp1 = temp1.replace( '-', '' )
+    temp1 = temp1.replace( ':', '' )
 
-    FormattedDate = Temp1[0:8]
-    FormattedTime = Temp1[9:15]
-    return [FormattedDate, FormattedTime]
+    formatted_date = temp1[0:8]
+    formatted_time = temp1[9:15]
+    return [formatted_date, formatted_time]
 
 def logit( logString: str, filename: str) -> bool :
 
@@ -76,29 +76,35 @@ def check_if_work_needed (filename: str, yesterdayDate: dt.date ) -> (bool, str)
 #   Find out if we have alread done this today.
 #   Currently not used
 #
-    Date = ""
+    date = ""
     result = True
     # if date file nt present, create it and populate with
     # yesterday's date
     if (not os.path.isfile(filename)):
-        Date = today - dt.timedelta(days=1)
+        date = today - dt.timedelta(days=1)
     else :
-        fh = open(dateFile, "r")
-        Date = fh.read()
+        fh = open(date_file, "r")
+        date = fh.read()
         fh.close()
 
-    return result, Date
+    return result, date
 
 def get_command_line_params(clin) -> (bool, str, int):
 #
 #   There are 2 params:
+#
+#   Param 1: action=<scan|purge>
 #       - scan
 #           Scan the latest emails for items not on whitelist or blacklist
 #       OR
 #       - purge
 #           Purge (permanently delete) recent emails in blacklist
-#   Both have a value called limit which is a number expressing the
-#   limit of emails to scan or check for deletion
+#   Param 2: limit=<number
+#       A number expressing the
+#       limit of emails to scan or check for deletion
+#
+#   Example Command Line:
+#       > python.exe main.py action=scan limit=50
 #
     result = True
     ac = ""
@@ -232,7 +238,7 @@ today = dt.date.today()
 result = True
 
 if (action == "scan"):
-    result, DateFileDate = check_if_work_needed(dateFile, today)
+    result, date_fileDate = check_if_work_needed(date_file, today)
 
 if result:
     pass
@@ -242,10 +248,10 @@ else:
         sys.exit()
 
 # open the delete file
-result, blacklist = get_blacklist_file(blacklistFile)
+result, blacklist = get_blacklist_file(blacklist_file)
 
 if result:
-    result, whitelist = get_whitelist_file(whitelistFile)
+    result, whitelist = get_whitelist_file(whitelist_file)
     if result:
         result, newlist = get_newest_sender_file( newestFile, FALSE )
         if result :
@@ -406,14 +412,14 @@ if (action == 'scan'):
 
     blacklist.sort(key = lambda x: x.lower())
 
-    fd = open(blacklistFile, "w")
+    fd = open(blacklist_file, "w")
     for n in blacklist:
         fd.write(str(n) + "\n")
     fd.close()
 
     whitelist.sort(key = lambda x: x.lower())
 
-    fd = open(whitelistFile, "w")
+    fd = open(whitelist_file, "w")
 
     for n in whitelist:
         fd.write(str(n) + "\n")
