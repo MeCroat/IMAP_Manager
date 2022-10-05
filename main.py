@@ -10,16 +10,20 @@ from tkinter import *
 
 import pytz
 
-user = "xxxx@yyy.com"
-password = "password"
-imap_url = "mbox.server289.com"
-date_file = "MailFileDate.txt"
-blacklist_file = "BlackList.txt"
-whitelist_file = "WhiteList.txt"
-returnlist_file = 'JustReturns.txt'
-newestFile = "NewestSendersToConsider.txt"
+user = "xxxx@yyy.com" # subject email address
+password = "password" # subject email address password
+imap_url = "mbox.server289.com" # url of the IMAP server
+#
+# Local Files
+date_file = "MailFileDate.txt"  # Date of last execution of the program
+blacklist_file = "BlackList.txt" # list of email addresses that are blacklisted
+whitelist_file = "WhiteList.txt" # List if emailaddresses that are whitelisted
+returnlist_file = "JustReturns.txt" #
+newest_file = "NewestSendersToConsider.txt"
 
-max_emails_to_scan = 50
+MAX_EMAILS_TO_SCAN = 50 # Maximum number of email to scan, Used of no 'limit' is
+                        # specified on the command line
+
 ids_with_extra_data = {}
 
 blacklist = dict()
@@ -201,13 +205,10 @@ def encoded_words_to_text(encoded_words):
 ########## M A I N ######################################
 #########################################################
 
-# Press the green button in the gutter to run the script.
-#encoded_words_to_text("I Guarantee =?UTF-8?B?WW914oCZbGw=?= Have the Chance To see gains")
-
+#
+# Construct log file name from current date
 d = get_date_time()
-
 logfilename = d[0] + "_" + d[1] + ".log"
-
 
 if __name__ == '__main__':
     log( "Start..")
@@ -216,9 +217,10 @@ else:
 
 __argc = len(sys.argv)
 
-result, action, max_emails_to_scan  = get_command_line_params(sys.argv)
+result, action, MAX_EMAILS_TO_SCAN = get_command_line_params(sys.argv)
 
 temp = ""
+
 for i in range(0, __argc):
     temp = temp + " " + sys.argv[i]
 
@@ -247,7 +249,7 @@ result, blacklist = get_blacklist_file(blacklist_file)
 if result:
     result, whitelist = get_whitelist_file(whitelist_file)
     if result:
-        result, newlist = get_newest_sender_file( newestFile, FALSE )
+        result, newlist = get_newest_sender_file( newest_file, FALSE )
         if result :
             pass
         else:
@@ -262,6 +264,7 @@ else:
 mail = imaplib.IMAP4_SSL("mbox.server289.com", 993)
 
 result, folders =  mail.login(user, password)
+
 #print (mail.list())
 
 if result != 'OK':
@@ -282,7 +285,7 @@ if result != "OK":
     log("InBox is empty!")
     sys.exit()
 
-scan_count = int( max_emails_to_scan )
+scan_count = int( MAX_EMAILS_TO_SCAN )
 
 if (action == 'scan'):
 
@@ -302,14 +305,14 @@ if (action == 'scan'):
             subject = email_message['Subject']
             from_party = email_message['From']
             return_party = email_message['Return-Path']
-            __s = subject.split( "\n" )
+            s = subject.split( "\n" )
             subject = ""
-            for __str in __s:
-                __str = __str.replace("\r", "")
-                if "=?utf-" in __str.lower():
-                    subject += encoded_words_to_text(__str)
+            for str in s:
+                str = str.replace("\r", "")
+                if "=?utf-" in str.lower():
+                    subject += encoded_words_to_text(str)
                 else:
-                    subject += __str
+                    subject += str
             # kick out the extraneous characters
             m = re.search('<.+>', from_party)
             if m is not None:
@@ -421,7 +424,7 @@ if (action == 'scan'):
 
     newlist.sort(key = lambda x: x.lower())
 
-    fd = open(newestFile, "a")
+    fd = open(newest_file, "a")
 
     d = get_date_time()
     fd.write('\n*** ' + d[0] + ' ' + d[1] + ' *** \n\n')
@@ -434,7 +437,7 @@ if (action == 'scan'):
 
 elif (action == "purge"):
     ref = dataX[0].split()
-    for i in range( -1, 0-max_emails_to_scan-1, -1):
+    for i in range( -1, 0-MAX_EMAILS_TO_SCAN-1, -1):
         num = ref[i]
         result, dataY = mail.uid( 'fetch', num, '(RFC822)' )
         if result == "OK":
@@ -442,14 +445,14 @@ elif (action == "purge"):
             email_message = email.message_from_bytes(dataY[0][1])
             from_party = email_message['From']
             subject = email_message['Subject']
-            __s = subject.split( "\n" )
+            s = subject.split( "\n" )
             subject = ""
-            for __str in __s:
-                __str = __str.replace("\r", "")
-                if "=?utf-" in __str.lower():
-                    subject += encoded_words_to_text(__str)
+            for str in s:
+                str = str.replace("\r", "")
+                if "=?utf-" in str.lower():
+                    subject += encoded_words_to_text(str)
                 else:
-                    subject += __str
+                    subject += str
             m = re.search('<.+>', from_party)
             if m == None:
                 from_address = from_party
