@@ -109,9 +109,9 @@ def get_command_line_params(clin) -> (bool, str, str, str, int):
     ac = ""
     lim = 0
     email_address = ""
-    fatal_errors = 0
     password = ""
 
+    fatal_errors=0
     for i in clin:
 
         s = i.split("=")
@@ -151,7 +151,7 @@ def get_command_line_params(clin) -> (bool, str, str, str, int):
     if (fatal_errors > 0):
         sys.exit()
 
-    return result, ac, lim
+    return result, ac, email_address, password, lim
 
 def get_blacklist_file(file_name:str) -> (bool, list):
 #
@@ -164,7 +164,7 @@ def get_blacklist_file(file_name:str) -> (bool, list):
         contents = fh.readlines()
         fh.close()
     else :
-        # create the delete file
+        # create the blacklist file
         fh = open(file_name, "w")
         fh.close()
 
@@ -188,7 +188,7 @@ def get_newest_sender_file(file_name:str, append:bool = FALSE) -> (bool, list):
         contents = fh.readlines()
         fh.close()
     else :
-        # create the delete file
+        # create the newest sender file
         fh = open(file_name, "w")
         fh.close()
 
@@ -213,7 +213,7 @@ def get_whitelist_file(file_name:str) ->(bool, list):
         contents = fh.readlines()
         fh.close()
     else :
-        # create the delete file
+        # create the whitelist file
         fh = open(file_name,"w")
         fh.close()
 
@@ -229,7 +229,7 @@ def get_whitelist_file(file_name:str) ->(bool, list):
 
 def encoded_words_to_text(encoded_words):
 
-    #print ("E =" + str(encoded_words))
+    # Decode words that are encoded by IMAP. Frequently this is done for Subject Lines
     encoded_word_regex = r'(.*)=\?{1}(.+)\?{1}([B|Q|b|q])\?{1}(.+)\?{1}=(.*)'
     pre_text, charset, encoding, encoded_text, post_text = re.match(encoded_word_regex, encoded_words).groups()
     if encoding == 'B' or encoding == 'b':
@@ -265,7 +265,6 @@ log( "Command line: " + temp)
 
 action = action.lower()
 
-#print ( date_time.strftime("%m.%d.%Y %H:%M:%S"))
 today = dt.date.today()
 
 result = True
