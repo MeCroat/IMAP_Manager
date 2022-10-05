@@ -68,6 +68,7 @@ def log( s: str):
 
     if ret == False:
         sys.exit("I/O error on log file!")
+    return
 
 def check_if_work_needed (filename: str, yesterdayDate: dt.date ) -> (bool, str) :
 #
@@ -87,9 +88,9 @@ def check_if_work_needed (filename: str, yesterdayDate: dt.date ) -> (bool, str)
 
     return result, date
 
-def get_command_line_params(clin) -> (bool, str, int):
+def get_command_line_params(clin) -> (bool, str, str, str, int):
 #
-#   There are 2 params:
+#   There are 4 command line params:
 #
 #   Param 1: action=<scan|purge>
 #       - scan
@@ -102,17 +103,53 @@ def get_command_line_params(clin) -> (bool, str, int):
 #       limit of emails to scan or check for deletion
 #
 #   Example Command Line:
-#       > python.exe main.py action=scan limit=50
+#       > python.exe main.py  email_address=xx@yyy.com password=$$password action=scan limit=50
 #
     result = True
     ac = ""
-    lim = "0"
+    lim = 0
+    email_address = ""
+    fatal_errors = 0
+    password = ""
+
     for i in clin:
+
         s = i.split("=")
         if s[0] == "action":
-            ac = s[1]
-        elif s[0] == "limit":
-            lim = int(s[1])
+            if s[1] == "scan" or s[1] == "purge":
+                ac = s[1]
+            else:
+                log( "invalid action" + s[1] + " specified on the command line")
+                fatal_errors+=1
+        elif (s[0] == "limit"):
+            if s[1].isdigit():
+                lim = int(s[1])
+            else:
+                log("limit " + s[1] + " is not a number.")
+                fatal_errors+=1
+        elif s[0] == "email_address":
+            email_regex = re.compile(r"[^@]+@[^@]+\.[^@]+")
+            if email_regex.match(s[1]):
+                log("Invalid Email Address " + s[1])
+                fatal_errors+=1
+            pass
+        elif s[0] == 'password':
+            if len(password) > 0:
+                password = s[1]
+            pass
+
+    if (len(ac) == 0):
+        log("required command line parameter action is missing")
+        fatal_errors+=1
+    if len(email_address) == 0:
+        log("required command line parameter email address is missing")
+        fatal_errors+=1
+    if len(password) == 0:
+        log("required command line parameter password is missing")
+        fatal_errors+=1
+
+    if (fatal_errors > 0):
+        sys.exit()
 
     return result, ac, lim
 
