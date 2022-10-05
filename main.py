@@ -1,23 +1,17 @@
-import imaplib
-import email
-import time
+import base64
 import datetime as dt
-import pytz
+import email
+import imaplib
 import os
+import quopri
+import re
 import sys
 from tkinter import *
 
+import pytz
 
-import re
-
-import base64, quopri
-
-from os import path
-from datetime import timezone
-
-# This is a sample Python script.
-user = "mecroat@mastermode.com"
-password = "Mandy@4629"
+user = "xxxx@yyy.com"
+password = "password"
 imap_url = "mbox.server289.com"
 date_file = "MailFileDate.txt"
 blacklist_file = "BlackList.txt"
