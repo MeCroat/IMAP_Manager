@@ -10,65 +10,126 @@ from tkinter import *
 
 import pytz
 
-user = "xxxx@yyy.com" # subject email address
-password = "password" # subject email address password
-imap_url = "mbox.server289.com" # url of the IMAP server
-#
-# Local Files
-date_file = "MailFileDate.txt"  # Date of last execution of the program
-blacklist_file = "BlackList.txt" # list of email addresses that are blacklisted
-whitelist_file = "WhiteList.txt" # List if emailaddresses that are whitelisted
-returnlist_file = "JustReturns.txt" #
-newest_file = "NewestSendersToConsider.txt"
+#################################################
+# BEGIN CLASS DEFINITIONS                       #
+#################################################
+
+#   Logger: used to maintain file containing the list of log messages
+class Logger(object):
+
+    STATE_NULL: int          = 0
+    STATE_ACTIVE: int        = 1
+    STATE_PAUSED: int         = 2
+    STATE_FILE_OPEN_ERROR: int  = 3
+    STATE_LOG_OPEN_FAIL: int = 4
+
+    state_messages = {STATE_NULL: 'NULL', STATE_ACTIVE: 'ACTIVE', STATE_PAUSED: 'PAUSED',
+                      STATE_FILE_OPEN_ERROR: 'FILE OPEN ERROR', STATE_LOG_OPEN_FAIL: 'LOG FILE OPEN FAILURE'}
+
+    init_success: bool       = False
+    last_error_message       =  ""
+
+    MSG_FILE_OPEN_ERROR = "LOG_FILE_OPEN_ERROR"
+
+    def __init__(self, file_name="./IMAP_LOG_FILE"):
+        #
+        self.file_name=file_name
+        self.state=Logger.STATE_NULL
+        self.last_error_message=""
+
+        try:
+            fh = open( self.file_name, "a")
+            fh.close()
+            self.state=Logger.STATE_ACTIVE
+
+        except IOError as e:
+            self.state=Logger.STATE_FILE_OPEN_ERROR
+            self.last_error_message=str(e)
+    def __repr_(self):
+        print ('{} - {} - {}'.format(self.file_name, self.state_messages[self.state], self.last_error_message )
+
+    def __str__(self):
+        print('{}'.format(self.file_name))
+
+    def __delete__(self):
+        pass
+
+    def is_active(self)->bool:
+        return self.state==Logger.STATE_ACTIVE
+
+    def is_inactive(self):
+        return not self.state==Logger.STATE_ACTIVE
+
+    def get_error_messsage_text(self):
+        return self.last_error_message
+        pass
+
+    def pause_logger(self):
+        self.state = Logger.STATE_PAUSED
+
+    def log_it(self, log_strs: list)-> bool:
+        return_value = True
+        if self.state == Logger.STATE_ACTIVE :
+            try:
+                fh = open( self.file_name, "a")
+                fh.writelines(log_strs)
+                fh.close()
+            except IOError as e:
+                self.state = Logger.STATE_FILE_OPEN_ERROR
+                self.last_error_message = str(e)
+        elif self.state == Logger.STATE_PAUSED:
+            return_value = True
+        else:
+            return_value = False
+            self.last_error_message = "Logger is not Active"
+
+        return return_value
+
+#################################################
+# END CLASS DEFINITIONS                         #
+#################################################
+user        = "xxxx@yyy.com" # subject email address
+password    = "password" # subject email address password
+imap_url    = "mbox.server289.com" # url of the IMAP server
 
 MAX_EMAILS_TO_SCAN = 50 # Maximum number of email to scan, Used of no 'limit' is
                         # specified on the command line
+#
+# Local Files
+date_file       = str("./MailFileDate.txt")  # Date of last execution of the program
+blacklist_file  = "BlackList.txt" # list of email addresses that are blacklisted
+blacklist       = list()
+whitelist_file  = "WhiteList.txt" # List if emailaddresses that are whitelisted
+whitelist       = list()
+newest_file     = "NewestSendersToConsider.txt"
+newlist         = list()
 
-ids_with_extra_data = {}
+num_emails_to_scan  = MAX_EMAILS_TO_SCAN
 
-blacklist = dict()
-whitelist = dict()
-newlist = dict()
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
+ids_with_extra_data = dict()
 
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
     print(name)# Press Ctrl+F8 to toggle the breakpoint.
 
+def log_message( the_logger: Logger, message: str):
+
+    d = get_date_time()
+    out_str = [d[0] + "." + d[1] + " " + message + '\n']
+
+    if (the_logger.log_it( out_str) == FALSE):
+        print ("Unable to log ", out_str)
+
 def get_date_time( ) -> []:
+
     date_time = dt.datetime.now()
     current_time = date_time.now( pytz.timezone( 'America/Chicago' ) )
-    temp1 = str( current_time )
+    temp1 = current_time.__str__()
     temp1 = temp1.replace( '-', '' )
     temp1 = temp1.replace( ':', '' )
-
     formatted_date = temp1[0:8]
     formatted_time = temp1[9:15]
     return [formatted_date, formatted_time]
-
-def logit( logString: str, filename: str) -> bool :
-
-    result = True
-
-    fh = open( filename, "a")
-    d = get_date_time()
-    out = d[0] + "." + d[1] + " " + logString
-    out_str = [out]
-    fh.writelines(out_str)
-    fh.close()
-
-    return result
-
-def log( s: str):
-
-    ret = logit( s + "\n", logfilename)
-
-    if ret == False:
-        sys.exit("I/O error on log file!")
-    return
 
 def check_if_work_needed (filename: str, yesterdayDate: dt.date ) -> (bool, str) :
 #
@@ -98,9 +159,15 @@ def get_command_line_params(clin) -> (bool, str, str, str, int):
 #       OR
 #       - purge
 #           Purge (permanently delete) recent emails in blacklist
-#   Param 2: limit=<number
+#   Param 2: limit=<number>
 #       A number expressing the
 #       limit of emails to scan or check for deletion
+#
+#   Param 3: email_address=<email address>
+#       A valid email address which is the account to be addressed
+#
+#   Param 4: password=<password>
+#       Password for the email account expressed in paramater 3 above.
 #
 #   Example Command Line:
 #       > python.exe main.py  email_address=xx@yyy.com password=$$password action=scan limit=50
@@ -119,33 +186,35 @@ def get_command_line_params(clin) -> (bool, str, str, str, int):
             if s[1] == "scan" or s[1] == "purge":
                 ac = s[1]
             else:
-                log( "invalid action" + s[1] + " specified on the command line")
+                log_message( my_logger, "invalid action" + s[1] + " specified on the command line")
                 fatal_errors+=1
         elif (s[0] == "limit"):
             if s[1].isdigit():
                 lim = int(s[1])
             else:
-                log("limit " + s[1] + " is not a number.")
+                log_message(my_logger, "limit " + s[1] + " is not a number.")
                 fatal_errors+=1
         elif s[0] == "email_address":
             email_regex = re.compile(r"[^@]+@[^@]+\.[^@]+")
             if email_regex.match(s[1]):
-                log("Invalid Email Address " + s[1])
+                email_address = s[1]
+            else:
+                log_message( my_logger, "Invalid Email Address " + s[1])
                 fatal_errors+=1
             pass
         elif s[0] == 'password':
-            if len(password) > 0:
+            if len(password) == 0:
                 password = s[1]
             pass
 
     if (len(ac) == 0):
-        log("required command line parameter action is missing")
+        log_message( my_logger, "required command line parameter action is missing or invalid")
         fatal_errors+=1
     if len(email_address) == 0:
-        log("required command line parameter email address is missing")
+        log_message( my_logger, "required command line parameter email_address is missing or invalid")
         fatal_errors+=1
     if len(password) == 0:
-        log("required command line parameter password is missing")
+        log_message( my_logger, "required command line parameter password is missing or invalid")
         fatal_errors+=1
 
     if (fatal_errors > 0):
@@ -158,22 +227,17 @@ def get_blacklist_file(file_name:str) -> (bool, list):
 # open and read the file of emails that should be deleted
 #
     result = True
-    contents = []
-    if os.path.isfile(file_name) :
+    str_list = list()
+    if os.path.isfile(file_name):
         fh = open(file_name,"r")
-        contents = fh.readlines()
+        str_list = fh.readlines()
         fh.close()
     else :
         # create the blacklist file
         fh = open(file_name, "w")
         fh.close()
 
-    strr = contents
-
-    contents = []
-
-    for i in strr:
-        contents.append(i.rstrip('\n'))
+    contents = [n.rstrip('\n') for n in str_list]
 
     return result, contents
 
@@ -182,50 +246,42 @@ def get_newest_sender_file(file_name:str, append:bool = FALSE) -> (bool, list):
 # open and read the file of emails that should be deleted
 #
     result = True
-    contents = []
+    str_list = []
     if os.path.isfile(file_name) :
         fh = open(file_name,"r")
-        contents = fh.readlines()
+        str_list = fh.readlines()
         fh.close()
     else :
         # create the newest sender file
         fh = open(file_name, "w")
         fh.close()
 
-    strr = contents
-
     contents = []
 
     if (append == TRUE):
-        for i in strr:
-            contents.append(i.rstrip('\n'))
+        contents = [i.rstrip('\n') for i in str_list]
 
     return result, contents
+
 
 def get_whitelist_file(file_name:str) ->(bool, list):
 #
 # open and read the file of emails that should be allowed
 #
     result = True
-    contents = []
+    str_list = []
     if os.path.isfile(file_name) :
         fh = open(file_name,"r")
-        contents = fh.readlines()
+        str_list = fh.readlines()
         fh.close()
     else :
         # create the whitelist file
         fh = open(file_name,"w")
         fh.close()
 
-    strr = contents
-
-    contents = []
-
-    for i in strr:
-        contents.append(i.rstrip('\n'))
+    contents = [i.rstrip('\n') for i in str_list]
 
     return result, contents
-
 
 def encoded_words_to_text(encoded_words):
 
@@ -241,42 +297,47 @@ def encoded_words_to_text(encoded_words):
 #########################################################
 ########## M A I N ######################################
 #########################################################
+def main():
+    pass
 
+if __name__ == '__main__':
+    main()
 #
 # Construct log file name from current date
 d = get_date_time()
-logfilename = d[0] + "_" + d[1] + ".log"
+log_file_name = d[0] + "_" + d[1] + ".log"
 
-if __name__ == '__main__':
-    log( "Start..")
-else:
+my_logger = Logger(log_file_name)
+
+if my_logger.is_inactive():
+    print("unable to start logger: " + my_logger.last_error_message)
     sys.exit()
 
-__argc = len(sys.argv)
-
-result, action, MAX_EMAILS_TO_SCAN = get_command_line_params(sys.argv)
-
 temp = ""
+
+__argc = len(sys.argv)
 
 for i in range(0, __argc):
     temp = temp + " " + sys.argv[i]
 
-log( "Command line: " + temp)
+
+result, action, user, password,  num_emails_to_scan = get_command_line_params(sys.argv)
+
+log_message( my_logger, "Command line " +  temp)
 
 action = action.lower()
-
 today = dt.date.today()
 
-result = True
+result1 = True
 
 if (action == "scan"):
-    result, date_fileDate = check_if_work_needed(date_file, today)
+    result1, date_fileDate = check_if_work_needed(date_file, today)
 
-if result:
+if result1:
     pass
 else:
     if (action == "scan"):
-        log("Date file Not Found")
+        log_message( my_logger, "Date file Not Found")
         sys.exit()
 
 # open the delete file
@@ -304,7 +365,7 @@ result, folders =  mail.login(user, password)
 #print (mail.list())
 
 if result != 'OK':
-    log("No mail folders, no login!")
+    log_message( my_logger, "No mail folders, no login!")
     sys.exit()
 
 if (action == 'scan'):
@@ -318,10 +379,10 @@ if result == "OK":
     result, dataX = mail.uid('search', None, 'ALL')
 
 if result != "OK":
-    log("InBox is empty!")
+    log_message( my_logger, "InBox is empty!")
     sys.exit()
 
-scan_count = int( MAX_EMAILS_TO_SCAN )
+scan_count = num_emails_to_scan
 
 if (action == 'scan'):
 
@@ -342,7 +403,7 @@ if (action == 'scan'):
             from_party = email_message['From']
             return_party = email_message['Return-Path']
             s = subject.split( "\n" )
-            subject = ""
+
             for str in s:
                 str = str.replace("\r", "")
                 if "=?utf-" in str.lower():
@@ -386,16 +447,16 @@ if (action == 'scan'):
             from_address = n[1][0]
             subject = n[1][1]
             if from_address in blacklist:
-                log ("Skip " + from_address + ": in blacklist")
+                log_message( my_logger, "Skip " + from_address + ": in blacklist")
                 continue
             if return_path in blacklist:
-                log ("Skip " + return_path + ": in blacklist")
+                log_message( my_logger, "Skip " + return_path + ": in blacklist")
                 continue
             if from_address in whitelist:
-                log ("Skip " + from_address + ": in whitelist")
+                log_message( my_logger, "Skip " + from_address + ": in whitelist")
                 continue
             if return_path in whitelist:
-                log ("Skip " + return_path + ": in whitelist")
+                log_message( my_logger, "Skip " + return_path + ": in whitelist")
                 continue
             else:
                 while (True ):
@@ -405,33 +466,33 @@ if (action == 'scan'):
                         result = "s"
                         break
                     if  result == "" or result == "s":
-                        log("message from " + from_address + " manually skipped.")
+                        log_message( my_logger, "message from " + from_address + " manually skipped.")
                         break
                     if result == "b":
                         if from_address not in blacklist:
                             blacklist.append(from_address)
-                            log( "from address " + from_address + " blacklisted." )
+                            log_message( my_logger,  "from address " + from_address + " blacklisted." )
                             if from_address not in newlist:
                                 newlist.append( '(f) - ' + from_address)
                         if return_path not in blacklist:
                             blacklist.append(return_path)
                             if return_path not in newlist :
                                 newlist.append('(r) - ' +  return_path)
-                            log( "return path " + return_path + " blacklisted." )
+                            log_message( my_logger,  "return path " + return_path + " blacklisted." )
                         break
                     elif result == 'w':
                         if from_address not in whitelist:
                             whitelist.append(from_address)
-                            log( "from address " + from_address + " whitelisted." )
+                            log_message( my_logger,  "from address " + from_address + " whitelisted." )
                         if return_path not in whitelist:
                             whitelist.append(return_path)
-                            log( "from address " + return_path + " whitelisted." )
+                            log_message( my_logger,  "from address " + return_path + " whitelisted." )
                         break
                     elif result == "r":
-                        log("user requested resetting scan loop.")
+                        log_message( my_logger, "user requested resetting scan loop.")
                         break
                     elif result == "q":
-                        log("Operator Abort")
+                        log_message( my_logger, "Operator Abort")
                         sys.exit()
                     else:
                         continue
@@ -473,7 +534,7 @@ if (action == 'scan'):
 
 elif (action == "purge"):
     ref = dataX[0].split()
-    for i in range( -1, 0-MAX_EMAILS_TO_SCAN-1, -1):
+    for i in range( -1, 0-num_emails_to_scan-1, -1):
         num = ref[i]
         result, dataY = mail.uid( 'fetch', num, '(RFC822)' )
         if result == "OK":
@@ -498,20 +559,20 @@ elif (action == "purge"):
                 from_address = from_address.replace('>', '')
 
             if from_address in blacklist:
-                log( "Purging: " + str(from_address) + " : " + subject + " : " + str(num) )
+                log_message( my_logger,  "Purging: " + str(from_address) + " : " + subject + " : " + str(num) )
                 _ , msg = mail.uid('fetch', num, "(RFC822)")
                 try:
                   mail.uid('STORE', num, '+FLAGS', '\\DELETED')
                 except Exception as e:
-                    log ("Mail store (delete) error for UID " + str(num) + " From: " + from_address + " Subject : " + subject + "... Skipping")
+                    log_message( my_logger, "Mail store (delete) error for UID " + str(num) + " From: " + from_address + " Subject : " + subject + "... Skipping")
             else:
                 try:
                     mail.uid('STORE', num, '-FLAGS', '\\SEEN')
                 except Exception as e:
                     #print ("Error {0} ".format(e))
-                    log ( "Mail store (unread) error for UID " + str(num) + " From: " + from_address + " Subject : " + subject + "... Skipping")
+                    log_message( my_logger,  "Mail store (unread) error for UID " + str(num) + " From: " + from_address + " Subject : " + subject + "... Skipping")
         else:
-            log("Failed to fetch mail for UID " + str(num))
+            log_message( my_logger, "Failed to fetch mail for UID " + str(num))
 
     mail.expunge()
     mail.close()
