@@ -46,7 +46,7 @@ class Logger(object):
             self.state=Logger.STATE_FILE_OPEN_ERROR
             self.last_error_message=str(e)
     def __repr_(self):
-        print ('{} - {} - {}'.format(self.file_name, self.state_messages[self.state], self.last_error_message )
+        print ('{} - {} - {}'.format(self.file_name, self.state_messages[self.state], self.last_error_message ))
 
     def __str__(self):
         print('{}'.format(self.file_name))
@@ -167,7 +167,7 @@ def get_command_line_params(clin) -> (bool, str, str, str, int):
 #       A valid email address which is the account to be addressed
 #
 #   Param 4: password=<password>
-#       Password for the email account expressed in paramater 3 above.
+#       Password for the email account expressed in parameter 3 above.
 #
 #   Example Command Line:
 #       > python.exe main.py  email_address=xx@yyy.com password=$$password action=scan limit=50
