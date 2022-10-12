@@ -45,7 +45,8 @@ class Logger(object):
         except IOError as e:
             self.state=Logger.STATE_FILE_OPEN_ERROR
             self.last_error_message=str(e)
-    def __repr_(self):
+
+    def __repr__(self):
         print ('{} - {} - {}'.format(self.file_name, self.state_messages[self.state], self.last_error_message ))
 
     def __str__(self):
